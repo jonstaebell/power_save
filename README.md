@@ -24,7 +24,7 @@ Power monitoring using TP-Link smart plug
    ```
 
 2. **Install requirements:**
-   * Requires arp-scan and kasa *
+   * Requires arp-scan and kasa
    ```bash
    sudo apt update && sudo apt install arp-scan
    pipx install python-kasa
