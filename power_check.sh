@@ -30,18 +30,25 @@ COOLDOWN_MINUTES=30
 # 1. Find IP via MAC (Variable loaded from .env)
 # --- Smart IP Lookup ---
 # 1. Try the last known IP from .env first
-if [ -n "$LAST_IP" ] && ping -c 1 -W 1 "$LAST_IP" > /dev/null 2>&1; then
+if [ -n "$LAST_IP" ] && [ "$LAST_IP" != "0.0.0.0" ] && ping -c 1 -W 1 "$LAST_IP" > /dev/null 2>&1; then
     PLUG_IP="$LAST_IP"
 else
-    # 2. Fallback: Run the heavy scan if ping fails or LAST_IP is empty
-    PLUG_IP=$(sudo arp-scan --localnet --quiet | grep -i "$PLUG_MAC" | awk '{print $1}')
+    # 2. Fallback: Run the heavy scan. Using absolute path for sudo and arp-scan
+    # We also use 'stdbuf' to ensure we don't hit buffering issues in cron
+    PLUG_IP=$(sudo /usr/sbin/arp-scan --localnet --quiet | grep -i "$PLUG_MAC" | awk '{print $1}')
     
-    # 3. Update the .env file if we found a new/different IP
-    if [ -n "$PLUG_IP" ] && [ "$PLUG_IP" != "$LAST_IP" ]; then
-        # This uses 'sed' to swap the old IP for the new one in your .env file
+    # 3. Safety Check: If arp-scan failed to find the MAC
+    if [ -z "$PLUG_IP" ]; then
+        echo "$(date): arp-scan could not find MAC $PLUG_MAC on the network." >> "$ERROR_LOG"
+        exit 1
+    fi
+
+    # 4. Update the .env file if we found a new/different IP
+    if [ "$PLUG_IP" != "$LAST_IP" ]; then
         sed -i "s/LAST_IP=.*/LAST_IP=\"$PLUG_IP\"/" "$SCRIPT_DIR/.env"
     fi
 fi
+
 
 # 2. Get Wattage
 WATTAGE=$($KASA_BIN --host "$PLUG_IP" --discovery-timeout 1 --json energy | jq '.power_mw / 1000 | floor' 2>>"$ERROR_LOG")
@@ -70,8 +77,15 @@ if [ "$WATTAGE" -gt "$THRESHOLD" ]; then
 fi
 
 # 5. Log & Cleanup
+# Append the new data point first
 echo "$(date '+%Y-%m-%d %H:%M:%S'),$WATTAGE" >> "$LOG_FILE"
-# Keep the header and the last 10,000 lines of data
+
+# Define the clean header
 HEADER="Timestamp,Wattage,Status"
-DATA=$(tail -n 10000 "$LOG_FILE")
+
+# Grab the last 10,000 lines, but FILTER OUT any existing header lines
+# 'grep -v' means "everything EXCEPT this word"
+DATA=$(grep -v "Timestamp" "$LOG_FILE" | tail -n 10000)
+
+# Overwrite the file with exactly one header and the cleaned data
 echo -e "$HEADER\n$DATA" > "$LOG_FILE"
