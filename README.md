@@ -15,6 +15,11 @@ Power monitoring using TP-Link smart plug
 | 2026-04-01 09:01:02 | 45 | |
 | 2026-04-01 09:02:01 | 42 | COOLDOWN |
 
+## Dashboard Preview
+Example of how the power consumption data looks on the optional Uptime Kuma integration. The wattage is mapped to the "Ping" metric to create a real-time line chart.
+
+![Uptime Kuma Power Graph](./kasa-kuma-preview.png)
+
 ## 🛠️ Installation
 
 1. **Clone the repository:**
@@ -41,6 +46,24 @@ Power monitoring using TP-Link smart plug
 - **PLUG_MAC** MAC Address of the smart plug to monitor
 - **WEBHOOK_URL** Discord Webhook to be invoked if power use exceeds maximum
 - **LAST_IP** Leave as 0.0.0.0, script will update when MAC Address is found
+- **KUMA_URL** Uptime Kuma push monitor URL (see below); leave as "" if not using Uptime Kuma
+
+## 📊 Uptime Kuma Integration (optional)
+
+This script utilizes the **Push Monitor** type in Uptime Kuma to create a real-time power consumption dashboard. Instead of Kuma "pinging" a service, the script "pushes" the current wattage data to Kuma's API every minute.
+
+### 1. Create the Monitor in Uptime Kuma
+1. Click **Add New Monitor**.
+2. Select **Monitor Type**: `Push`.
+3. **Friendly Name**: e.g., `Server Power Draw`.
+4. **Heartbeat Interval**: Set this to `90` seconds (this provides a 30s buffer for the 60s cron job).
+5. **Save** the monitor and copy the generated **Push URL**.
+
+### 2. Configure the Script
+1. Open your `.env` file in the project root.
+2. Paste your unique URL into the `KUMA_URL` variable:
+   ```bash
+   KUMA_URL="[http://192.168.68.97:3001/api/push/your_unique_token](http://192.168.68.97:3001/api/push/your_unique_token)"   
 
 ## 📖 Usage
 
