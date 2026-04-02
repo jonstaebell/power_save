@@ -89,3 +89,16 @@ DATA=$(grep -v "Timestamp" "$LOG_FILE" | tail -n 10000)
 
 # Overwrite the file with exactly one header and the cleaned data
 echo -e "$HEADER\n$DATA" > "$LOG_FILE"
+
+# 6. Uptime Kuma monitor
+# 6. Uptime Kuma monitor (Dynamic URL from .env)
+# Only run if KUMA_URL is actually set
+if [ -n "$KUMA_URL" ]; then
+    # Construct the full URL with the wattage ping
+    FULL_KUMA_URL="${KUMA_URL}?status=up&msg=OK&ping=$WATTAGE"
+    
+    # Send the data with a 10s timeout and 3 retries
+    curl --max-time 10 --retry 3 --retry-delay 5 -s "$FULL_KUMA_URL" > /dev/null
+else
+    echo "KUMA_URL not found in .env, skipping Kuma push."
+fi
